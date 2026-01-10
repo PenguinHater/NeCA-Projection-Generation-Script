@@ -82,7 +82,7 @@ def make_projector(angle_pair, idx):
     rot_mat = rotation_matrix_from_to(from_source_vec, to_source_vec[0])
     axis, angle = rotation_matrix_to_axis_angle(rot_mat)
 
-    # Contruct ConeBeam3DProjector
+    # Step 6, Contruct ConeBeam3DProjector
     return ConeBeam3DProjector(
         nVoxel,
         dVoxel,
