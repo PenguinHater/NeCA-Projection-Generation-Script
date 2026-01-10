@@ -50,11 +50,15 @@ def rotation_matrix_to_axis_angle(m):
 
 def make_projector(angle_pair, idx):
     """Trainer-faithful CPU projector construction"""
+
+    # Step 1, Conversion from [pitch, yaw] to [yaw, pitch]
     proj_angle = [-angle_pair[1], angle_pair[0]]
+
+    # Step 2, Define reference vectors
     from_source_vec = (0, -DSO[idx], 0)
     from_rot_vec    = (-1, 0, 0)
 
-    # Yaw rotation
+    # Step 3, Perform yaw rotation
     to_source_vec = axis_rotation(
         (0, 0, 1),
         angle=proj_angle[0] / 180.0 * np.pi,
@@ -67,18 +71,18 @@ def make_projector(angle_pair, idx):
         vectors=from_rot_vec
     )
 
-    # Pitch rotation
+    # Step 4, Perform pitch rotation
     to_source_vec = axis_rotation(
         to_rot_vec[0],
         angle=proj_angle[1] / 180.0 * np.pi,
         vectors=to_source_vec[0]
     )
 
-    # Axis-angle for ODL
+    # Step 5, Convert to axis-angle for ODL
     rot_mat = rotation_matrix_from_to(from_source_vec, to_source_vec[0])
     axis, angle = rotation_matrix_to_axis_angle(rot_mat)
 
-    # CPU ASTRA is always used (like trainer)
+    # Contruct ConeBeam3DProjector
     return ConeBeam3DProjector(
         nVoxel,
         dVoxel,
