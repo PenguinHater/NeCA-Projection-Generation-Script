@@ -51,14 +51,14 @@ def rotation_matrix_to_axis_angle(m):
 def make_projector(angle_pair, idx):
     """Trainer-faithful CPU projector construction"""
 
-    # Step 1, Conversion from [pitch, yaw] to [yaw, pitch]
+    # Step 1: convert [pitch, yaw] → [yaw, pitch]
     proj_angle = [-angle_pair[1], angle_pair[0]]
 
-    # Step 2, Define reference vectors
+    # Step 2: reference vectors
     from_source_vec = (0, -DSO[idx], 0)
     from_rot_vec    = (-1, 0, 0)
 
-    # Step 3, Perform yaw rotation
+    # Step 3: yaw rotation (around z)
     to_source_vec = axis_rotation(
         (0, 0, 1),
         angle=proj_angle[0] / 180.0 * np.pi,
@@ -71,18 +71,18 @@ def make_projector(angle_pair, idx):
         vectors=from_rot_vec
     )
 
-    # Step 4, Perform pitch rotation
+    # Step 4: pitch rotation (around rotated x)
     to_source_vec = axis_rotation(
         to_rot_vec[0],
         angle=proj_angle[1] / 180.0 * np.pi,
         vectors=to_source_vec[0]
     )
 
-    # Step 5, Convert to axis-angle for ODL
+    # Step 5: convert to axis-angle (ODL format)
     rot_mat = rotation_matrix_from_to(from_source_vec, to_source_vec[0])
     axis, angle = rotation_matrix_to_axis_angle(rot_mat)
 
-    # Step 6, Contruct ConeBeam3DProjector
+    # Step 6: construct projector
     return ConeBeam3DProjector(
         nVoxel,
         dVoxel,
@@ -98,8 +98,8 @@ def make_projector(angle_pair, idx):
 # Main
 # --------------------------------------------------
 print("[INFO] Loading GT volume...")
-vol = np.load(INPUT_NPY).astype(np.float32)     # (128,128,128)
-vol = vol[None, None, ...]                      # (1,1,128,128,128)
+vol = np.load(INPUT_NPY).astype(np.float32)  # (128,128,128)
+vol = vol[None, ...]                         # (1,128,128,128)
 vol_t = torch.from_numpy(vol)
 
 print("[INFO] Creating projectors (trainer-faithful CPU)...")
@@ -107,20 +107,12 @@ proj1 = make_projector(first_projection_angle,  idx=0)
 proj2 = make_projector(second_projection_angle, idx=1)
 
 print("[INFO] Forward projecting...")
-p1 = proj1.forward_project(vol_t)   # (1,1,1,512,512)
+p1 = proj1.forward_project(vol_t)   # (1,1,512,512)
 p2 = proj2.forward_project(vol_t)
 
-p1 = p1.squeeze(2)  # remove depth dimension -> (1,1,512,512)
-p2 = p2.squeeze(2)
-
 projections = torch.cat([p1, p2], dim=1).cpu().numpy()  # (1,2,512,512)
-
-# Normalize
-projections -= projections.min()
-projections /= (projections.max() + 1e-8)
 
 # Save
 os.makedirs(os.path.dirname(OUTPUT_NPY), exist_ok=True)
 np.save(OUTPUT_NPY, projections)
 print("[DONE] Saved projections:", projections.shape)
-
